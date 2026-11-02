@@ -2,6 +2,8 @@ name: Package WordPress Plugin
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
   release:
@@ -11,9 +13,21 @@ permissions:
   contents: write
 
 jobs:
+  notes:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set the 1.0.2 release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit v1.0.2 \
+            --title "1.0.2" \
+            --notes "Report a failed Nginx Helper purge when the page-cache Redis rejects the username or password."
+
   build:
-    # A version tag creates the release. Skip the second run that event starts.
-    if: github.event_name != 'release' || github.event.release.author.login != 'github-actions[bot]'
+    # Tag pushes create the release. Human-published releases still get a zip.
+    if: (github.event_name == 'push' && github.ref_type == 'tag') || (github.event_name == 'release' && github.event.release.author.login != 'github-actions[bot]')
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -55,7 +69,8 @@ jobs:
         run: |
           title="${GITHUB_REF_NAME#v}"
           echo "title=${title}" >> "$GITHUB_OUTPUT"
-          notes="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME")"
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          notes="$(git for-each-ref --format='%(contents)' "refs/tags/${GITHUB_REF_NAME}")"
           {
             echo "body<<EOF"
             printf '%s\n' "$notes"
