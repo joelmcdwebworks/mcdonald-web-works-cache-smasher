@@ -3,7 +3,7 @@
  * Plugin Name:       McDonald Web Works Cache Smasher
  * Plugin URI:        https://github.com/joelmcdwebworks/mcdonald-web-works-cache-smasher
  * Description:       Adds a Smash Cache admin bar button that purges Cloudflare, Nginx Helper, and Redis Object Cache, and updates Prevent Browser Caching versions.
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 5.0
  * Tested up to:      7.1
  * Requires PHP:      7.4
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'MWW_CACHE_SMASHER_VERSION', '1.0.1' );
+define( 'MWW_CACHE_SMASHER_VERSION', '1.0.2' );
 define( 'MWW_CACHE_SMASHER_FILE', __FILE__ );
 define( 'MWW_CACHE_SMASHER_DIR', plugin_dir_path( __FILE__ ) );
 

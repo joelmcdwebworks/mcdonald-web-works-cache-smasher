@@ -237,6 +237,12 @@ class MWW_Cache_Smasher {
 			return $this->result( $label, false, __( 'Plugin is not active.', 'mcdonald-web-works-cache-smasher' ) );
 		}
 
+		$redis_error = $this->nginx_page_cache_redis_error();
+
+		if ( is_string( $redis_error ) ) {
+			return $this->result( $label, false, $redis_error );
+		}
+
 		try {
 			do_action( 'rt_nginx_helper_purge_all' );
 		} catch ( \Throwable $e ) {
@@ -246,6 +252,88 @@ class MWW_Cache_Smasher {
 		}
 
 		return $this->result( $label, true, __( 'All cache purged.', 'mcdonald-web-works-cache-smasher' ) );
+	}
+
+	/**
+	 * Confirm the page-cache Redis accepts Nginx Helper's username and password.
+	 *
+	 * Nginx Helper catches a rejected login and still finishes the purge action,
+	 * so the smash would otherwise report success without deleting any keys.
+	 *
+	 * @return string|null Failure message, or null when Redis is not the page cache or the login succeeded.
+	 */
+	private function nginx_page_cache_redis_error() {
+		global $nginx_helper_admin;
+
+		if ( empty( $nginx_helper_admin->options['cache_method'] ) || 'enable_redis' !== $nginx_helper_admin->options['cache_method'] ) {
+			return null;
+		}
+
+		if ( ! class_exists( 'Redis' ) ) {
+			return null;
+		}
+
+		$options = $nginx_helper_admin->options;
+		$redis   = new Redis();
+		$context = array();
+
+		if ( ! empty( $options['redis_username'] ) && isset( $options['redis_password'] ) && '' !== $options['redis_password'] ) {
+			$context['auth'] = array( $options['redis_username'], $options['redis_password'] );
+		}
+
+		try {
+			$socket = isset( $options['redis_unix_socket'] ) ? $options['redis_unix_socket'] : '';
+
+			if ( $socket ) {
+				$redis->connect( $socket, 0, 5, '', 100, 1.5, $context );
+			} else {
+				$redis->connect(
+					$options['redis_hostname'],
+					(int) $options['redis_port'],
+					5,
+					'',
+					100,
+					1.5,
+					$context
+				);
+			}
+
+			$database = isset( $options['redis_database'] ) ? (int) $options['redis_database'] : 0;
+
+			if ( 0 !== $database ) {
+				$redis->select( $database );
+			}
+
+			$pong = $redis->ping();
+
+			if ( true !== $pong && 1 !== $pong && 'PONG' !== $pong && '+PONG' !== $pong ) {
+				return __( 'Page cache Redis did not respond.', 'mcdonald-web-works-cache-smasher' );
+			}
+		} catch ( \Throwable $e ) {
+			$this->log_error( 'Nginx Helper', $e );
+
+			return $this->nginx_redis_failure_message( $e );
+		} finally {
+			try {
+				$redis->close();
+			} catch ( \Throwable $e ) {
+				unset( $e );
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * @param \Throwable $e Redis client failure.
+	 * @return string
+	 */
+	private function nginx_redis_failure_message( $e ) {
+		if ( preg_match( '/WRONGPASS|NOAUTH|invalid username|invalid password|authentication/i', $e->getMessage() ) ) {
+			return __( 'Page cache Redis rejected the username or password.', 'mcdonald-web-works-cache-smasher' );
+		}
+
+		return __( 'Page cache Redis is not connected.', 'mcdonald-web-works-cache-smasher' );
 	}
 
 	/**
