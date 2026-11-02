@@ -1,6 +1,9 @@
 name: Package WordPress Plugin
 
 on:
+  push:
+    tags:
+      - "v*"
   release:
     types: [published]
 
@@ -9,10 +12,15 @@ permissions:
 
 jobs:
   build:
+    # A version tag creates the release. Skip the second run that event starts.
+    if: github.event_name != 'release' || github.event.release.author.login != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -42,9 +50,23 @@ jobs:
           unzip -l mcdonald-web-works-cache-smasher.zip
           test -f mcdonald-web-works-cache-smasher.zip
 
+      - name: Read release notes
+        id: release
+        run: |
+          title="${GITHUB_REF_NAME#v}"
+          echo "title=${title}" >> "$GITHUB_OUTPUT"
+          notes="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME")"
+          {
+            echo "body<<EOF"
+            printf '%s\n' "$notes"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Upload plugin zip to release
         uses: softprops/action-gh-release@v2
         with:
+          name: ${{ steps.release.outputs.title }}
+          body: ${{ steps.release.outputs.body }}
           files: mcdonald-web-works-cache-smasher.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
