@@ -1,0 +1,12 @@
+{
+	"name": "joelmcdwebworks/mcdonald-web-works-cache-smasher",
+	"description": "Smash Cache admin bar button for Cloudflare, Nginx Helper, Redis Object Cache, and Prevent Browser Caching.",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": ">=7.4",
+		"yahnis-elsts/plugin-update-checker": "^5.6"
+	},
+	"config": {
+		"sort-packages": true
+	}
+}

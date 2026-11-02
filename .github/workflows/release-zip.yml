@@ -1,0 +1,50 @@
+name: Package WordPress Plugin
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction
+
+      - name: Create plugin zip
+        run: |
+          mkdir -p build/mcdonald-web-works-cache-smasher
+          tar -cf - \
+            --exclude .git \
+            --exclude .github \
+            --exclude .gitignore \
+            --exclude .cursor \
+            --exclude build \
+            --exclude '*.zip' \
+            . | tar -xf - -C build/mcdonald-web-works-cache-smasher
+          (
+            cd build
+            zip -r ../mcdonald-web-works-cache-smasher.zip mcdonald-web-works-cache-smasher
+          )
+          unzip -l mcdonald-web-works-cache-smasher.zip
+          test -f mcdonald-web-works-cache-smasher.zip
+
+      - name: Upload plugin zip to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mcdonald-web-works-cache-smasher.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
